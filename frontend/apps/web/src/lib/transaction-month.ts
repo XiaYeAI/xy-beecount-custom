@@ -41,6 +41,11 @@ export function shiftMonth(month: string, amount: number): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
+/** Advances the dependency version used to reload the selected month's totals. */
+export function nextMonthSummaryRefreshVersion(version: number): number {
+  return version + 1
+}
+
 /**
  * Copies a transaction into a target month without carrying identifiers or
  * attachments. The calendar date portion is shifted directly, preserving the

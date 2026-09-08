@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   copyTransactionToMonth,
   monthBounds,
+  nextMonthSummaryRefreshVersion,
   shiftMonth,
   type CopyableTransaction,
 } from './transaction-month'
@@ -18,6 +19,10 @@ describe('transaction month helpers', () => {
   it('moves between months in both directions', () => {
     expect(shiftMonth('2026-01', -1)).toBe('2025-12')
     expect(shiftMonth('2026-12', 1)).toBe('2027-01')
+  })
+
+  it('advances the month-summary refresh version after a transaction write', () => {
+    expect(nextMonthSummaryRefreshVersion(4)).toBe(5)
   })
 
   it('copies a 31st to the final day of a non-leap February and preserves the time', () => {

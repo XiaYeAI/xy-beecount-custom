@@ -104,7 +104,7 @@ import { consumePendingShareText } from '../../lib/pwa-intake'
 import { dispatchOpenDetailTx } from '../../lib/txDialogEvents'
 // AppLayout 已搬到 AppShell。
 import type { AppSection } from '../../state/router'
-import { copyTransactionToMonth, monthBounds, shiftMonth } from '../../lib/transaction-month'
+import { copyTransactionToMonth, monthBounds, nextMonthSummaryRefreshVersion, shiftMonth } from '../../lib/transaction-month'
 
 type Notice = {
   type: 'default' | 'destructive'
@@ -428,6 +428,7 @@ export function TransactionsPage() {
   const [txFilterDraft, setTxFilterDraft] = useState<TxFilter>(defaultTxFilter)
   const [txFilterOpen, setTxFilterOpen] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(() => localMonthKey())
+  const [monthSummaryRefreshVersion, setMonthSummaryRefreshVersion] = useState(0)
   const [monthSummary, setMonthSummary] = useState({ income: 0, expense: 0, balance: 0 })
   const [monthSummaryLoading, setMonthSummaryLoading] = useState(false)
   const [budgetRemaining, setBudgetRemaining] = useState<number | null>(null)
@@ -1022,7 +1023,7 @@ export function TransactionsPage() {
         if (!cancelled) setMonthSummaryLoading(false)
       })
     return () => { cancelled = true }
-  }, [activeLedgerId, route.section, selectedMonth, token])
+  }, [activeLedgerId, monthSummaryRefreshVersion, route.section, selectedMonth, token])
 
   useEffect(() => {
     if (route.section !== 'transactions' || !isAdminResolved) return
@@ -1152,6 +1153,9 @@ export function TransactionsPage() {
   const onRefresh = async () => {
     try {
       await Promise.all([refreshCurrent(), loadProfile()])
+      if (route.section === 'transactions') {
+        setMonthSummaryRefreshVersion(nextMonthSummaryRefreshVersion)
+      }
     } catch (err) {
       setErrorNotice(renderError(err))
     }
@@ -1561,6 +1565,7 @@ export function TransactionsPage() {
       setTxForm(txDefaults())
       const refreshLedger = activeLedgerId || ledgerId
       await refreshSectionData(refreshLedger, 'transactions')
+      setMonthSummaryRefreshVersion(nextMonthSummaryRefreshVersion)
       // 再打一次查询看服务端回给我们的具体这条 tx 的 tags/account_name；
       // 排查"更新没生效"时先看 server 是不是真的返回新值了。
       if (editingTxId) {
@@ -1600,6 +1605,7 @@ export function TransactionsPage() {
       setBaseChangeId(res.new_change_id)
     }
     await refreshSectionData(activeLedgerId || ledgerId, 'transactions')
+    setMonthSummaryRefreshVersion(nextMonthSummaryRefreshVersion)
     setSuccessNotice(t('notice.txDeleted'))
   }
 
