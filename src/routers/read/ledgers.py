@@ -529,6 +529,9 @@ def list_budgets(
 )
 def list_budgets_usage(
     ledger_external_id: str,
+    period: str | None = None,
+    tz_offset_minutes: int = 0,
+    natural_month: bool = False,
     _scopes: set[str] = Depends(_READ_SCOPE_DEP),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -572,13 +575,19 @@ def list_budgets_usage(
         if current is None or current.sync_id < b.sync_id:
             dedup[key] = b
 
-    now = datetime.now(timezone.utc)
-
     # 预算周期跟随账本 month_start_day(设计 D5:budget.start_day 弃用,
     # 与 mobile local_budget_repository 同口径)
-    period_day = ledger.month_start_day or 1
-
-    start, end = _current_period_range(period_day, now)
+    period_day = 1 if natural_month else (ledger.month_start_day or 1)
+    if period:
+        start, end, _ = _analytics_range(
+            scope="month",
+            period=period,
+            tz_offset_minutes=tz_offset_minutes,
+            month_start_day=period_day,
+        )
+        assert start is not None and end is not None
+    else:
+        start, end = _current_period_range(period_day, datetime.now(timezone.utc))
 
     items: list[ReadBudgetUsageItemOut] = []
     for b in dedup.values():

@@ -55,6 +55,19 @@ describe('i18n locale runtime', () => {
   })
 })
 
+describe('bookkeeping page naming', () => {
+  it('uses 收支明细 consistently for the simplified-Chinese bookkeeping entry', () => {
+    expect(zhCN['nav.transactions']).toBe('收支明细')
+    expect(zhCN['tab.transactions']).toBe('收支明细')
+    expect(zhCN['transactions.title']).toBe('收支明细')
+    expect(zhCN['cmdk.group.transactions']).toBe('收支明细')
+    expect(zhCN['cmdk.action.searchInList']).toContain('收支明细')
+    expect(zhCN['shell.txFilter']).toBe('收支类型筛选')
+    expect(zhCN['shell.filter.title']).toBe('收支筛选')
+    expect(zhCN['transactions.button.create']).toBe('记一笔')
+  })
+})
+
 describe('i18n error mapping and formatting', () => {
   const t = (key: string) => key
 

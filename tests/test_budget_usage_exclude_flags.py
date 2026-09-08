@@ -209,3 +209,48 @@ def test_total_budget_usage_excludes_exclude_from_budget_only() -> None:
         )
     finally:
         app.dependency_overrides.clear()
+
+
+def test_budget_usage_can_target_a_selected_month() -> None:
+    client = _make_client()
+    try:
+        owner = _register(client, "budget-period@example.com")
+        app_token, device = owner["access_token"], owner["device_id"]
+        ledger_id = "L_BUDGET_PERIOD"
+        _seed_ledger(client, app_token, device, ledger_id)
+
+        _push_tx(
+            client,
+            app_token,
+            device,
+            ledger_id,
+            {
+                "syncId": "tx-2025-december",
+                "type": "expense",
+                "amount": 321.0,
+                "happenedAt": datetime(2025, 12, 15, 12, tzinfo=timezone.utc).isoformat(),
+            },
+        )
+
+        web = _login_web(client, "budget-period@example.com")
+        token = web["access_token"]
+        res = client.post(
+            f"/api/v1/write/ledgers/{ledger_id}/budgets",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "base_change_id": _latest_change_id(client, token, ledger_id),
+                "type": "total",
+                "amount": 1000,
+                "start_day": 1,
+            },
+        )
+        assert res.status_code == 200, res.text
+
+        res = client.get(
+            f"/api/v1/read/ledgers/{ledger_id}/budgets/usage?period=2025-12&tz_offset_minutes=0",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert res.status_code == 200, res.text
+        assert res.json()["items"][0]["used"] == 321.0
+    finally:
+        app.dependency_overrides.clear()

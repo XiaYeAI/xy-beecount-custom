@@ -76,6 +76,8 @@ class BatchTransactionItem(BaseModel):
     # v30 交易级多币种:调用方(MCP)按账户/主币种定好并折算后传入
     currency_code: str | None = None
     native_amount: float | None = None
+    exclude_from_stats: bool = False
+    exclude_from_budget: bool = False
 
 
 class BatchCreateTxRequest(BaseModel):
@@ -391,6 +393,8 @@ def _build_tx_payload(
         payload["currency_code"] = item.currency_code
     if item.native_amount is not None:
         payload["native_amount"] = item.native_amount
+    payload["exclude_from_stats"] = item.exclude_from_stats
+    payload["exclude_from_budget"] = item.exclude_from_budget
     # 合并 auto_tag(LLM 已识别的 tags + 自动加的 AI 记账 / 图片记账)
     user_tags = list(item.tags or [])
     merged_tags = user_tags + [t for t in auto_tag_names if t and t not in user_tags]

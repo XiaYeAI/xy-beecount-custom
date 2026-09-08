@@ -195,6 +195,10 @@ export type BatchTxItem = {
   from_account_id?: string | null
   to_account_id?: string | null
   tags?: string[] | null
+  currency_code?: string | null
+  native_amount?: number | null
+  exclude_from_stats?: boolean
+  exclude_from_budget?: boolean
 }
 
 export type BatchCreateTxResponse = {
@@ -223,6 +227,7 @@ export async function batchCreateTransactions(
     attachImageId?: string | null
     locale?: string
     baseChangeId?: number
+    idempotencyKey?: string
   }
 ): Promise<BatchCreateTxResponse> {
   return authedPost<BatchCreateTxResponse>(
@@ -235,6 +240,7 @@ export async function batchCreateTransactions(
       extra_tag_name: options.extraTagName ?? null,
       attach_image_id: options.attachImageId ?? null,
       locale: options.locale || 'zh',
-    }
+    },
+    options.idempotencyKey,
   )
 }

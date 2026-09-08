@@ -76,10 +76,11 @@ export type BudgetsWithUsage = {
 export async function fetchBudgetsWithUsage(
   token: string,
   ledgerId: string,
+  options?: { period?: string; tzOffsetMinutes?: number; naturalMonth?: boolean },
 ): Promise<BudgetsWithUsage> {
   const [budgets, usageResp] = await Promise.all([
     fetchReadBudgets(token, ledgerId),
-    fetchReadBudgetUsage(token, ledgerId).catch(() => ({ items: [] })),
+    fetchReadBudgetUsage(token, ledgerId, options).catch(() => ({ items: [] })),
   ])
   const usageById: Record<string, BudgetUsage> = {}
   for (const item of usageResp.items) {

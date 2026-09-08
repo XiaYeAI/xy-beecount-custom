@@ -19,7 +19,7 @@ import { useLedgers } from '../../context/LedgersContext'
 import { useSharedLedgerResources } from '../../context/SharedLedgerResourcesContext'
 import { bundleToReadResources } from '../../lib/shared-ledger-mappers'
 
-import { CheckSquare, Download, SlidersHorizontal } from 'lucide-react'
+import { CheckSquare, ChevronLeft, ChevronRight, Copy, Download, SlidersHorizontal } from 'lucide-react'
 
 import {
   useToast,
@@ -49,6 +49,7 @@ import {
 import {
   ApiError,
   batchAttachmentExists,
+  batchCreateTransactions,
   batchDeleteTransactions,
   downloadAttachment,
   uploadAttachment,
@@ -75,6 +76,7 @@ import {
   fetchWorkspaceCategories,
   fetchWorkspaceTags,
   fetchWorkspaceTransactions,
+  fetchWorkspaceAnalytics,
   patchProfileMe,
   updateLedgerMeta,
   updateTransaction
@@ -89,6 +91,7 @@ import {
   TransactionsPanel,
   canManageLedger,
   canWriteTransactions,
+  fetchBudgetsWithUsage,
   txDefaults,
   type TxForm
 } from '@beecount/web-features'
@@ -101,6 +104,7 @@ import { consumePendingShareText } from '../../lib/pwa-intake'
 import { dispatchOpenDetailTx } from '../../lib/txDialogEvents'
 // AppLayout 已搬到 AppShell。
 import type { AppSection } from '../../state/router'
+import { copyTransactionToMonth, monthBounds, shiftMonth } from '../../lib/transaction-month'
 
 type Notice = {
   type: 'default' | 'destructive'
@@ -155,6 +159,21 @@ type TxFilter = {
 }
 
 const TX_PAGE_SIZE_DEFAULT = 20
+
+function localMonthKey(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function MonthMetric({ label, value, tone, loading, empty = false }: { label: string; value: number; tone: string; loading: boolean; empty?: boolean }) {
+  return (
+    <div className="min-w-[84px]">
+      <p className="text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 text-sm font-semibold ${tone}`}>
+        {loading ? '—' : empty ? '未设置预算' : `¥${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+      </p>
+    </div>
+  )
+}
 // v1 → v2:加了 amount range / date range / category / tag 过滤,key 升版避免
 // 旧 storage 数据 partial 回填出空字段。
 const TX_FILTER_STORAGE_PREFIX = 'beecount:web:txFilter:v2'
@@ -395,6 +414,8 @@ export function TransactionsPage() {
   const lastClickIndexRef = useRef<number | null>(null)
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
   const [batchSaving, setBatchSaving] = useState(false)
+  const [copyOpen, setCopyOpen] = useState(false)
+  const [copyTargetMonth, setCopyTargetMonth] = useState(() => shiftMonth(localMonthKey(), 1))
 
   const [adminUserStatusFilter, setAdminUserStatusFilter] = useState<'enabled' | 'disabled' | 'all'>('enabled')
   // devicesWindowDays state 已迁到 SettingsDevicesPage。
@@ -406,6 +427,10 @@ export function TransactionsPage() {
   const [txFilterApplied, setTxFilterApplied] = useState<TxFilter>(defaultTxFilter)
   const [txFilterDraft, setTxFilterDraft] = useState<TxFilter>(defaultTxFilter)
   const [txFilterOpen, setTxFilterOpen] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState(() => localMonthKey())
+  const [monthSummary, setMonthSummary] = useState({ income: 0, expense: 0, balance: 0 })
+  const [monthSummaryLoading, setMonthSummaryLoading] = useState(false)
+  const [budgetRemaining, setBudgetRemaining] = useState<number | null>(null)
   // filter dialog 内嵌的 category / tag picker。这两个 dialog 跟 filter dialog
   // 同级渲染(filter dialog z-index 之外),避免嵌套 dialog 导致 portal 抖动。
   const [txFilterCategoryPickerOpen, setTxFilterCategoryPickerOpen] = useState(false)
@@ -639,16 +664,19 @@ export function TransactionsPage() {
       //     server 端用 happened_at < date_to,正好覆盖整个 dateTo 当天
       const minNum = Number(txFilterApplied.amountMin || '')
       const maxNum = Number(txFilterApplied.amountMax || '')
-      const dateFromIso = txFilterApplied.dateFrom
-        ? new Date(`${txFilterApplied.dateFrom}T00:00:00`).toISOString()
-        : undefined
-      const dateToIso = txFilterApplied.dateTo
+      const monthRange = monthBounds(selectedMonth)
+      const dateFromIso = new Date(`${monthRange.from}T00:00:00`).toISOString()
+      const dateToIso = (() => {
+        const d = new Date(`${monthRange.to}T00:00:00`)
+        return d.toISOString()
+      })()
+      /* const dateToIso = txFilterApplied.dateTo
         ? (() => {
             const d = new Date(`${txFilterApplied.dateTo}T00:00:00`)
             d.setDate(d.getDate() + 1)
             return d.toISOString()
           })()
-        : undefined
+        : undefined */
 
       const [txPageResult, accountRows, categoryRows, tagRows] = await Promise.all([
         fetchWorkspaceTransactions(token, {
@@ -953,7 +981,8 @@ export function TransactionsPage() {
     isAdminUser,
     activeLedgerId,
     txPage,
-    txPageSize
+    txPageSize,
+    selectedMonth
   ])
 
   useEffect(() => {
@@ -963,6 +992,37 @@ export function TransactionsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLedgerId, listUserFilter, listQuery, txFilterApplied.txType, txFilterApplied.accountName, route.section])
+
+  useEffect(() => {
+    if (route.section !== 'transactions' || !activeLedgerId) return
+    let cancelled = false
+    setMonthSummaryLoading(true)
+    const tzOffsetMinutes = -new Date().getTimezoneOffset()
+    void Promise.all([
+      fetchWorkspaceAnalytics(token, { scope: 'month', metric: 'expense', period: selectedMonth, ledgerId: activeLedgerId, tzOffsetMinutes, naturalMonth: true }),
+      fetchBudgetsWithUsage(token, activeLedgerId, { period: selectedMonth, tzOffsetMinutes, naturalMonth: true }),
+    ])
+      .then(([result, budgetData]) => {
+        if (cancelled) return
+        setMonthSummary({
+          income: result.summary.income_total,
+          expense: result.summary.expense_total,
+          balance: result.summary.balance,
+        })
+        const enabled = budgetData.budgets.filter((budget) => budget.enabled && budget.period === 'monthly')
+        setBudgetRemaining(enabled.length === 0 ? null : enabled.reduce((total, budget) => total + budget.amount - (budgetData.usageById[budget.id]?.used ?? 0), 0))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMonthSummary({ income: 0, expense: 0, balance: 0 })
+          setBudgetRemaining(null)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMonthSummaryLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [activeLedgerId, route.section, selectedMonth, token])
 
   useEffect(() => {
     if (route.section !== 'transactions' || !isAdminResolved) return
@@ -1771,6 +1831,59 @@ export function TransactionsPage() {
       setBatchSaving(false)
     }
   }, [activeLedgerId, selectedTxIds, token, t, toast, exitSelection])
+
+  const handleCopySelected = useCallback(async () => {
+    if (!activeLedgerId || selectedTxList.length === 0 || selectedTxList.length > 50) return
+    setBatchSaving(true)
+    try {
+      const transactionsToCreate = selectedTxList.map((row) =>
+        copyTransactionToMonth({
+          id: row.id,
+          tx_type: row.tx_type,
+          amount: row.amount,
+          happened_at: row.happened_at,
+          note: row.note,
+          category_name: row.category_name,
+          category_kind:
+            row.category_kind === 'expense' || row.category_kind === 'income' || row.category_kind === 'transfer'
+              ? row.category_kind
+              : null,
+          account_name: row.account_name,
+          from_account_name: row.from_account_name,
+          to_account_name: row.to_account_name,
+          category_id: row.category_id,
+          account_id: row.account_id,
+          from_account_id: row.from_account_id,
+          to_account_id: row.to_account_id,
+          tags: row.tags_list,
+          currency_code: row.currency_code,
+          native_amount: row.native_amount,
+          exclude_from_stats: row.exclude_from_stats,
+          exclude_from_budget: row.exclude_from_budget,
+          attachments: row.attachments,
+        }, copyTargetMonth),
+      )
+      const idempotencyKey = crypto.randomUUID()
+      const result = await retryOnConflict(activeLedgerId, (baseChangeId) =>
+        batchCreateTransactions(token, {
+          ledgerId: activeLedgerId,
+          transactions: transactionsToCreate,
+          autoAiTag: false,
+          locale,
+          baseChangeId,
+          idempotencyKey,
+        }),
+      )
+      toast.success(t('txBatch.copyResult.ok', { count: result.created_sync_ids.length, month: copyTargetMonth }))
+      setCopyOpen(false)
+      exitSelection()
+      void onRefresh()
+    } catch (err) {
+      toast.error(t('txBatch.copyResult.failed', { message: localizeError(err, t) }))
+    } finally {
+      setBatchSaving(false)
+    }
+  }, [activeLedgerId, copyTargetMonth, exitSelection, locale, onRefresh, retryOnConflict, selectedTxList, t, toast, token])
   // ──────────────────────────────────────────
 
   return (
@@ -1780,6 +1893,30 @@ export function TransactionsPage() {
 
           {route.section === 'transactions' ? (
             <div className="space-y-3">
+              <section className="rounded-xl border border-primary/15 bg-gradient-to-r from-primary/10 via-card to-card px-4 py-3 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center rounded-lg border border-border bg-background/80 p-1 shadow-sm">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={t('txBatch.month.previous')} onClick={() => setSelectedMonth((value) => shiftMonth(value, -1))}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Input aria-label={t('txBatch.month.select')} type="month" className="h-8 w-[132px] border-0 bg-transparent px-2 shadow-none" value={selectedMonth} onChange={(event) => {
+                      if (!event.target.value) return
+                      setSelectedMonth(event.target.value)
+                      setTxPage(1)
+                    }} />
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={t('txBatch.month.next')} onClick={() => setSelectedMonth((value) => shiftMonth(value, 1))}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8" onClick={() => setSelectedMonth(localMonthKey())}>{t('txBatch.month.current')}</Button>
+                  <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 text-xs tabular-nums">
+                    <MonthMetric label={t('txBatch.month.income')} value={monthSummary.income} tone="text-emerald-600 dark:text-emerald-400" loading={monthSummaryLoading} />
+                    <MonthMetric label={t('txBatch.month.expense')} value={monthSummary.expense} tone="text-rose-600 dark:text-rose-400" loading={monthSummaryLoading} />
+                    <MonthMetric label={t('txBatch.month.balance')} value={monthSummary.balance} tone="text-primary" loading={monthSummaryLoading} />
+                    <MonthMetric label={t('txBatch.month.budgetRemaining')} value={budgetRemaining ?? 0} tone="text-amber-600 dark:text-amber-300" loading={monthSummaryLoading} empty={budgetRemaining === null} />
+                  </div>
+                </div>
+              </section>
               {/* 交易搜索简化：keyword + 可选 filter 按钮，去掉 Card 包裹与
                   admin 用户选择（admin 场景走单独页，普通用户不需要暴露）。
                   左组 = 搜索输入 + 筛选;右组 = 导出 / 新建,
@@ -1914,6 +2051,10 @@ export function TransactionsPage() {
                   saving={batchSaving}
                   onToggleAllVisible={toggleSelectAllVisible}
                   onDelete={() => setBatchDeleteOpen(true)}
+                  onCopy={() => {
+                    setCopyTargetMonth(shiftMonth(selectedMonth, 1))
+                    setCopyOpen(true)
+                  }}
                   onExport={handleBatchExport}
                   onExit={exitSelection}
                 />
@@ -2021,6 +2162,28 @@ export function TransactionsPage() {
                 onConfirm={handleBatchDeleteConfirm}
                 onClose={() => setBatchDeleteOpen(false)}
               />
+              <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t('txBatch.copyDialog.title')}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 text-sm">
+                    <p className="text-muted-foreground">{t('txBatch.copyDialog.body', { count: selectedTxList.length })}</p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="copy-target-month">{t('txBatch.copyDialog.targetMonth')}</Label>
+                      <Input id="copy-target-month" type="month" value={copyTargetMonth} onChange={(event) => setCopyTargetMonth(event.target.value)} />
+                    </div>
+                    <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">{t('txBatch.copyDialog.dateRule')}</p>
+                    {selectedTxList.length > 50 ? <p className="text-destructive">{t('txBatch.copyDialog.limit')}</p> : null}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" disabled={batchSaving} onClick={() => setCopyOpen(false)}>{t('common.cancel')}</Button>
+                    <Button disabled={batchSaving || selectedTxList.length === 0 || selectedTxList.length > 50 || !copyTargetMonth} onClick={() => void handleCopySelected()}>
+                      <Copy className="mr-1.5 h-4 w-4" />{batchSaving ? t('txBatch.copyDialog.copying') : t('txBatch.copyDialog.confirm')}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : null}
 

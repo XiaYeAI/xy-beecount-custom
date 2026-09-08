@@ -1,5 +1,5 @@
 import { Button, useT } from '@beecount/ui'
-import { CheckSquare, Download, Trash2, X } from 'lucide-react'
+import { CheckSquare, Copy, Download, Trash2, X } from 'lucide-react'
 
 interface Props {
   selectedCount: number
@@ -9,6 +9,7 @@ interface Props {
   saving?: boolean
   onToggleAllVisible: () => void
   onDelete: () => void
+  onCopy: () => void
   onExport: () => void
   onExit: () => void
 }
@@ -28,6 +29,7 @@ export function SelectionToolbar({
   saving = false,
   onToggleAllVisible,
   onDelete,
+  onCopy,
   onExport,
   onExit,
 }: Props) {
@@ -42,6 +44,16 @@ export function SelectionToolbar({
         / {t('txBatch.totalCount', { count: totalCount })}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7"
+          onClick={onCopy}
+          disabled={noneSelected || saving || selectedCount > 50}
+        >
+          <Copy className="mr-1 h-3.5 w-3.5" />
+          {t('txBatch.copyToNextMonth')}
+        </Button>
         <Button
           size="sm"
           variant="ghost"

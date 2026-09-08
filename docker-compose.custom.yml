@@ -1,0 +1,14 @@
+# Overlay for a self-maintained BeeCount Cloud release.
+#
+# On xiayeai, keep the existing /home/ubuntu/beecount/docker-compose.yml
+# unchanged: it owns the production port, data bind mount, and credentials.
+# Run Compose with both files, from that directory:
+#   docker compose -f docker-compose.yml -f source/docker-compose.custom.yml up -d
+services:
+  beecount-cloud:
+    image: beecount-cloud-custom:2026.09.08-1
+    build:
+      context: ./source
+      dockerfile: Dockerfile
+      args:
+        VERSION: custom-2026.09.08-1

@@ -86,9 +86,15 @@ export type ReadBudgetUsage = {
 export async function fetchReadBudgetUsage(
   token: string,
   ledgerId: string,
+  options?: { period?: string; tzOffsetMinutes?: number; naturalMonth?: boolean },
 ): Promise<ReadBudgetUsage> {
+  const query = new URLSearchParams()
+  if (options?.period) query.set('period', options.period)
+  if (typeof options?.tzOffsetMinutes === 'number') query.set('tz_offset_minutes', `${options.tzOffsetMinutes}`)
+  if (options?.naturalMonth) query.set('natural_month', 'true')
+  const suffix = query.toString() ? `?${query.toString()}` : ''
   return authedGet<ReadBudgetUsage>(
-    `/read/ledgers/${encodeURIComponent(ledgerId)}/budgets/usage`,
+    `/read/ledgers/${encodeURIComponent(ledgerId)}/budgets/usage${suffix}`,
     token,
   )
 }
