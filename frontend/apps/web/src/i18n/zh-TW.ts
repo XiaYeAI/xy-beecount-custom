@@ -684,6 +684,8 @@ const zhTW = {
   'attachment.default': '附件',
 
   'home.scope.month': '本月',
+  'home.scope.monthCycle': '本帳期',
+  'home.scope.monthCycle.hint': '本帳期結餘',
   'home.scope.year': '今年',
   'home.scope.all': '彙總',
   'home.scope.month.hint': '本月結餘',
@@ -702,6 +704,7 @@ const zhTW = {
   'home.hero.trendUnit.period': '期',
   'home.hero.balanceAccum': '累計結餘',
   'home.hero.noTx': '暫無交易',
+  'home.hero.onlyOnePoint': '只有 1 天有記錄,暫無走勢',
 
   'home.monthMetric.income': '本月收入',
   'home.monthMetric.expense': '本月支出',
@@ -1111,6 +1114,7 @@ const zhTW = {
   'transactions.dictionary.loading': '正在載入可選資料...',
   'transactions.button.create': '記一筆',
   'transactions.button.update': '更新交易',
+  'transactions.form.tagsLabel': '標籤',
   'transactions.button.reset': '重設',
   'transactions.button.reload': '重新載入',
   'transactions.error.ledgerRequired': '請先選擇帳本。',

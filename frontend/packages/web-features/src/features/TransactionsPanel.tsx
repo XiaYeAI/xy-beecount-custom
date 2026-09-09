@@ -619,7 +619,8 @@ export function TransactionsPanel({
             )}
 
             <div className="space-y-1">
-              <Label>{t('tags.title')}</Label>
+              {/* 这里是单笔交易的标签选择,不是标签管理页,label 用"标签" */}
+              <Label>{t('transactions.form.tagsLabel')}</Label>
               {/* tag 多选改用 TagPickerDialog —— mobile 风格的 chip 选择,带搜索
                   + 颜色块,比 DropdownMenu 直观。trigger 按钮里把已选标签缩略
                   显示成彩色 chip,空时占位文案。视觉上跟同行的 SelectTrigger 同高。 */}
@@ -741,7 +742,8 @@ export function TransactionsPanel({
                 })
               }
             >
-              {form.editingId ? t('transactions.button.update') : t('transactions.button.create')}
+              {/* 提交按钮不再与弹窗标题同名(都叫"记一笔"),新建用"保存" */}
+              {form.editingId ? t('transactions.button.update') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

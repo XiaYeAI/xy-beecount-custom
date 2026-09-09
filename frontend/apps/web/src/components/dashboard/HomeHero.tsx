@@ -87,8 +87,12 @@ export function HomeHero({
 
   const activeSummary = summaryByScope[scope]
   const activeSeries = seriesByScope[scope]
-  const scopeLabel = t(`home.scope.${scope}`)
-  const scopeBalanceHint = t(`home.scope.${scope}.hint`)
+  // 账本设了非 1 号起算日时,"本月"实际是账期(如 9.7-10.6),和收支明细页的
+  // 自然月口径不同。文案换成"本账期",避免两个页面的"本月"数字对不上时
+  // 用户以为数据出错。
+  const isCycleMonth = scope === 'month' && ledgerMonthStartDay !== 1
+  const scopeLabel = isCycleMonth ? t('home.scope.monthCycle') : t(`home.scope.${scope}`)
+  const scopeBalanceHint = isCycleMonth ? t('home.scope.monthCycle.hint') : t(`home.scope.${scope}.hint`)
   const monthRangeLabel = scope === 'month' ? periodRangeText(ledgerMonthStartDay) : null
 
   const income = activeSummary?.income_total ?? 0
@@ -268,7 +272,9 @@ export function HomeHero({
               </span>
             ) : null}
           </div>
-          <div className="flex-1">
+          {/* 固定最小高度:recharts 首次挂载就能量到非零尺寸,避免
+              ResponsiveContainer 报 width(-1)/height(-1) 警告。 */}
+          <div className="min-h-[170px] flex-1">
             {trendData.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
@@ -319,7 +325,9 @@ export function HomeHero({
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                {t('home.hero.noTx')}
+                {/* 只有 1 个数据点时不算"暂无交易",文案区分开,避免和
+                    同页的笔数/支出统计自相矛盾。 */}
+                {trendData.length === 1 ? t('home.hero.onlyOnePoint') : t('home.hero.noTx')}
               </div>
             )}
           </div>

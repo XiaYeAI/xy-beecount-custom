@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- 声明页面同时支持明暗 color-scheme。没有这个 meta,Chromium 会把根元素的
+         color-scheme 钳制成 light,暗色模式下原生控件(月份/日期 picker 图标)
+         和滚动条不会跟随主题。配合 styles.css 的 :root/.dark color-scheme 使用。 -->
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/png" href="/branding/favicon-216.png" />
     <!-- PWA 基础：manifest + iOS Safari 的兼容 meta。sw 在 main.tsx 里注册。 -->
     <link rel="manifest" href="/manifest.webmanifest" />

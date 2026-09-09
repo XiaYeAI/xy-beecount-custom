@@ -1915,9 +1915,12 @@ export function TransactionsPage() {
                     </Button>
                   </div>
                   <Button size="sm" variant="outline" className="h-8" onClick={() => setSelectedMonth(localMonthKey())}>{t('txBatch.month.current')}</Button>
-                  <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 text-xs tabular-nums">
-                    <MonthMetric label={t('txBatch.month.income')} value={monthSummary.income} tone="text-emerald-600 dark:text-emerald-400" loading={monthSummaryLoading} />
-                    <MonthMetric label={t('txBatch.month.expense')} value={monthSummary.expense} tone="text-rose-600 dark:text-rose-400" loading={monthSummaryLoading} />
+                  {/* 窄屏 2×2 网格,避免 3+1 折行;sm 起恢复横排。
+                      收支色跟随全站 data-income-color 方案(text-income/text-expense),
+                      不再硬编码 emerald/rose,否则与行内金额颜色相反。 */}
+                  <div className="grid w-full grid-cols-2 gap-x-5 gap-y-1 text-xs tabular-nums sm:ml-auto sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+                    <MonthMetric label={t('txBatch.month.income')} value={monthSummary.income} tone="text-income" loading={monthSummaryLoading} />
+                    <MonthMetric label={t('txBatch.month.expense')} value={monthSummary.expense} tone="text-expense" loading={monthSummaryLoading} />
                     <MonthMetric label={t('txBatch.month.balance')} value={monthSummary.balance} tone="text-primary" loading={monthSummaryLoading} />
                     <MonthMetric label={t('txBatch.month.budgetRemaining')} value={budgetRemaining ?? 0} tone="text-amber-600 dark:text-amber-300" loading={monthSummaryLoading} empty={budgetRemaining === null} />
                   </div>
@@ -1962,12 +1965,12 @@ export function TransactionsPage() {
                   <Tooltip content={t('txBatch.entryTooltip')}>
                     <Button
                       aria-label={t('txBatch.entryTooltip') as string}
-                      className="hidden h-9 md:inline-flex"
-                      size="icon"
+                      className="hidden h-9 gap-1.5 md:inline-flex"
                       variant="outline"
                       onClick={() => enterSelection()}
                     >
                       <CheckSquare className="h-4 w-4" />
+                      {t('txBatch.entryTooltip')}
                     </Button>
                   </Tooltip>
                 ) : null}

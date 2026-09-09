@@ -138,22 +138,9 @@ export function TransactionRow({
   return (
     <div
       onClick={isInteractive ? handleRowClick : undefined}
-      role={isInteractive ? 'button' : undefined}
-      tabIndex={isInteractive ? 0 : undefined}
-      onKeyDown={
-        isInteractive
-          ? (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                if (selectionMode && onToggleSelect) {
-                  onToggleSelect(row, e as unknown as React.MouseEvent)
-                } else if (onSelect) {
-                  onSelect(row)
-                }
-              }
-            }
-          : undefined
-      }
+      // 行不再声明 role=button:行内嵌有编辑/删除/附件等真实按钮,role=button
+      // 不允许嵌套交互元素,屏幕阅读器会朗读混乱。鼠标用户仍可点行任意空白;
+      // 键盘/读屏用户走下方标题处的真实 <button>。
       className={`group relative flex items-start gap-3 py-2.5 ${
         isCompact ? 'px-3' : 'px-4'
       } transition-colors hover:bg-accent/30 ${
@@ -202,7 +189,26 @@ export function TransactionRow({
               className="shrink-0 text-muted-foreground"
             />
           ) : null}
-          <span className="truncate text-sm font-medium">{rowTitle.primary}</span>
+          {isInteractive ? (
+            // 键盘/读屏的正式入口:真实 button,焦点可达、Enter/Space 触发,
+            // 行为与点行一致(选择模式 = 切换选中,否则 = 打开详情)。
+            <button
+              type="button"
+              className="truncate rounded-sm text-left text-sm font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+              onClick={(event) => {
+                event.stopPropagation()
+                if (selectionMode && onToggleSelect) {
+                  onToggleSelect(row, event)
+                } else if (onSelect) {
+                  onSelect(row)
+                }
+              }}
+            >
+              {rowTitle.primary}
+            </button>
+          ) : (
+            <span className="truncate text-sm font-medium">{rowTitle.primary}</span>
+          )}
           {rowTitle.parenNote ? (
             <span className="truncate text-xs text-muted-foreground">
               ({rowTitle.parenNote})

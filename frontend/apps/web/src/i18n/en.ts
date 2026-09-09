@@ -685,6 +685,8 @@ const en = {
   'attachment.default': 'Attachment',
 
   'home.scope.month': 'Month',
+  'home.scope.monthCycle': 'Cycle',
+  'home.scope.monthCycle.hint': 'Cycle balance',
   'home.scope.year': 'Year',
   'home.scope.all': 'All',
   'home.scope.month.hint': "This month's balance",
@@ -703,6 +705,7 @@ const en = {
   'home.hero.trendUnit.period': 'pt',
   'home.hero.balanceAccum': 'Cumulative',
   'home.hero.noTx': 'No transactions',
+  'home.hero.onlyOnePoint': 'Only 1 day with records, no trend yet',
 
   'home.monthMetric.income': 'Month income',
   'home.monthMetric.expense': 'Month expense',
@@ -1110,6 +1113,7 @@ const en = {
   'transactions.dictionary.loading': 'Loading selectable data...',
   'transactions.button.create': 'Create Tx',
   'transactions.button.update': 'Update Tx',
+  'transactions.form.tagsLabel': 'Tags',
   'transactions.button.reset': 'Reset',
   'transactions.button.reload': 'Reload',
   'transactions.error.ledgerRequired': 'Please select a ledger.',

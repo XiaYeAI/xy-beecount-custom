@@ -205,6 +205,8 @@ const zhCN = {
 
   // 首页 dashboard widgets
   'home.scope.month': '本月',
+  'home.scope.monthCycle': '本账期',
+  'home.scope.monthCycle.hint': '本账期结余',
   'home.scope.year': '今年',
   'home.scope.all': '汇总',
   'home.scope.month.hint': '本月结余',
@@ -223,6 +225,7 @@ const zhCN = {
   'home.hero.trendUnit.period': '期',
   'home.hero.balanceAccum': '累计结余',
   'home.hero.noTx': '暂无交易',
+  'home.hero.onlyOnePoint': '只有 1 天有记录,暂无走势',
 
   // HomeMonthMetrics
   'home.monthMetric.income': '本月收入',
@@ -1152,6 +1155,7 @@ const zhCN = {
   'transactions.dictionary.loading': '正在加载可选数据...',
   'transactions.button.create': '记一笔',
   'transactions.button.update': '更新交易',
+  'transactions.form.tagsLabel': '标签',
   'transactions.button.reset': '重置',
   'transactions.button.reload': '重新加载',
   'transactions.error.ledgerRequired': '请先选择账本。',
