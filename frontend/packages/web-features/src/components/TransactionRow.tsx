@@ -4,7 +4,7 @@ import { useT } from '@beecount/ui'
 import { CategoryIcon } from './CategoryIcon'
 import { TagChip } from './TagChip'
 import { currencySymbol } from '../lib/currencies'
-import { composeTransactionRowTitle, type NoteDisplayMode } from '../lib/transactionRowTitle'
+import { composeTransactionRowTitle } from '../lib/transactionRowTitle'
 
 export type TransactionRowVariant = 'default' | 'compact'
 
@@ -50,8 +50,8 @@ type CommonProps = {
   /** 跨账本场景(详情弹窗 scope='all')—— 在 meta 行追加账本名 chip,帮用户
    *  区分同一分类/标签/账户在不同账本里的记录。同账本场景不传,避免噪声。 */
   showLedger?: boolean
-  /** 备注显示方式:'note' = 备注优先(有备注显示备注);默认 'category' = 分类 + 备注括号。 */
-  noteDisplayMode?: NoteDisplayMode
+  /** 保留外观设置的兼容入参,分类与备注始终同时展示。 */
+  noteDisplayMode?: 'category' | 'note'
 }
 
 /**
@@ -82,7 +82,6 @@ export function TransactionRow({
   selected = false,
   onToggleSelect,
   showLedger = false,
-  noteDisplayMode = 'category'
 }: CommonProps) {
   const t = useT()
   const attachments = Array.isArray(row.attachments) ? row.attachments : []
@@ -97,8 +96,6 @@ export function TransactionRow({
     row.native_amount !== row.amount
   const categoryText = row.category_name || (row.tx_type === 'transfer' ? t('enum.txType.transfer') : '-')
   const rowTitle = composeTransactionRowTitle({
-    mode: noteDisplayMode,
-    categoryName: row.category_name,
     categoryText,
     note: row.note,
   })
@@ -141,8 +138,8 @@ export function TransactionRow({
       // 行不再声明 role=button:行内嵌有编辑/删除/附件等真实按钮,role=button
       // 不允许嵌套交互元素,屏幕阅读器会朗读混乱。鼠标用户仍可点行任意空白;
       // 键盘/读屏用户走下方标题处的真实 <button>。
-      className={`group relative flex items-start gap-3 py-2.5 ${
-        isCompact ? 'px-3' : 'px-4'
+      className={`group relative flex items-start gap-2 py-2 ${
+        isCompact ? 'px-3' : 'px-3 md:px-4'
       } transition-colors hover:bg-accent/30 ${
         isInteractive ? 'cursor-pointer' : ''
       } ${selectionMode && selected ? 'bg-primary/8' : ''} ${className || ''}`}
@@ -174,11 +171,13 @@ export function TransactionRow({
           单元为空(row 高度由顶行决定),tile 跟单人账本完全一致;
           有 chip 时 row 高度被撑,左下 meta 自然贴底,跟 chip 水平对齐。 */}
       <div
-        className="min-w-0 flex-1 grid gap-x-3"
+        className={`grid min-w-0 flex-1 gap-x-3 md:flex md:flex-wrap md:items-center md:justify-start ${
+          isCompact ? '' : 'md:max-w-6xl'
+        }`}
         style={{ gridTemplateColumns: '1fr auto', gridTemplateRows: 'auto 1fr' }}
       >
         {/* 左上:分类 + 备注 + 账本名(showLedger,主题色) — self-start 钉到 row 顶部 */}
-        <div className="flex min-w-0 items-center gap-2 self-start">
+        <div className="flex min-w-0 items-center gap-2 self-start md:max-w-48 md:shrink-0">
           {categoryEntry ? (
             <CategoryIcon
               icon={categoryEntry.icon}
@@ -209,11 +208,6 @@ export function TransactionRow({
           ) : (
             <span className="truncate text-sm font-medium">{rowTitle.primary}</span>
           )}
-          {rowTitle.parenNote ? (
-            <span className="truncate text-xs text-muted-foreground">
-              ({rowTitle.parenNote})
-            </span>
-          ) : null}
           {showLedger && row.ledger_name ? (
             <span
               className="inline-flex shrink-0 items-center rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium leading-none text-primary"
@@ -224,8 +218,17 @@ export function TransactionRow({
           ) : null}
         </div>
 
+        {rowTitle.parenNote ? (
+          <span
+            className="hidden min-w-0 max-w-72 truncate text-sm text-muted-foreground md:order-2 md:block"
+            title={rowTitle.parenNote}
+          >
+            {rowTitle.parenNote}
+          </span>
+        ) : null}
+
         {/* 右上:hover 动作 + 金额 — self-start 钉顶 */}
-        <div className="flex shrink-0 items-center justify-end gap-2 self-start">
+        <div className="col-start-2 row-start-1 flex shrink-0 items-center justify-end gap-2 self-start md:order-4 md:ml-3">
           {(onEdit || onDelete) && !isCompact && !selectionMode ? (
             <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
               {onEdit ? (
@@ -256,13 +259,13 @@ export function TransactionRow({
               ) : null}
             </div>
           ) : null}
-          <span className={`font-mono tabular-nums font-bold ${
+          <span className={`font-mono text-sm tabular-nums font-bold ${
             amountTone === 'positive'
               ? 'text-income'
               : amountTone === 'negative'
                 ? 'text-expense'
                 : 'text-foreground'
-          } ${isCompact ? 'text-sm' : 'text-base'}`}>
+          }`}>
             {sign}
             {/* 外币显示其币种符号(JP¥/US$…,与本位币一眼区分);本位币维持纯数字 */}
             {isForeignCurrency ? currencySymbol(row.currency_code as string) : ''}
@@ -274,12 +277,15 @@ export function TransactionRow({
         </div>
 
         {/* 左下:时间·账户·标签·附件 — self-end 钉到 row 底部 */}
-        <div className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 self-end ${
+        <div className={`col-start-1 row-start-2 mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 self-end md:order-3 md:mt-0 md:gap-x-2 ${
           isCompact ? 'text-[11px]' : 'text-xs'
         } text-muted-foreground`}>
-          <span className="font-mono tabular-nums">{formatDateTime(row.happened_at)}</span>
+          <span className="shrink-0 font-mono tabular-nums">{formatDateTime(row.happened_at)}</span>
           {accountText && accountText !== '-' ? (
-            <span className="truncate">· {accountText}</span>
+            <span className="max-w-32 truncate">· {accountText}</span>
+          ) : null}
+          {rowTitle.parenNote ? (
+            <span className="min-w-0 truncate md:hidden" title={rowTitle.parenNote}>· {rowTitle.parenNote}</span>
           ) : null}
           {row.tags_list && row.tags_list.length > 0
             ? row.tags_list.map((tagName) => (
@@ -316,7 +322,7 @@ export function TransactionRow({
 
         {/* 右下:≈折算(反馈14:与左下时间行平齐)+ 创建/编辑头像 chip —
             self-end 钉到 row 底部,跟左下 meta 同 grid row,水平自动对齐 */}
-        <div className="mt-1 flex shrink-0 items-center justify-end gap-2 self-end">
+        <div className="col-start-2 row-start-2 mt-1 flex shrink-0 items-center justify-end gap-2 self-end md:order-5 md:col-start-auto md:row-start-auto md:ml-2 md:mt-0">
           {showCreator ? (
             <CreatorEditorChip row={row} currentUserId={currentUserId} t={t} />
           ) : null}

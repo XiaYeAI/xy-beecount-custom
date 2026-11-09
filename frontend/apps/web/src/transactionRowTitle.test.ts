@@ -15,10 +15,10 @@ describe('composeTransactionRowTitle', () => {
     })).toEqual({ primary: '餐饮', parenNote: null })
   })
 
-  it('note:有备注 → 纯备注,无括号', () => {
+  it('note:有备注 → 分类保留,备注独立显示', () => {
     expect(composeTransactionRowTitle({
       mode: 'note', categoryName: '餐饮', categoryText: '餐饮', note: '午餐',
-    })).toEqual({ primary: '午餐', parenNote: null })
+    })).toEqual({ primary: '餐饮', parenNote: '午餐' })
   })
 
   it('note:无备注 → 退回分类名', () => {
