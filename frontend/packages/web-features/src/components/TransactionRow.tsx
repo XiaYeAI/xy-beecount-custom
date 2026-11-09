@@ -139,7 +139,7 @@ export function TransactionRow({
       // 不允许嵌套交互元素,屏幕阅读器会朗读混乱。鼠标用户仍可点行任意空白;
       // 键盘/读屏用户走下方标题处的真实 <button>。
       className={`group relative flex items-start gap-2 py-2 ${
-        isCompact ? 'px-3' : 'px-3 md:px-4'
+        isCompact ? 'px-3' : 'px-3 md:pl-4 md:pr-24'
       } transition-colors hover:bg-accent/30 ${
         isInteractive ? 'cursor-pointer' : ''
       } ${selectionMode && selected ? 'bg-primary/8' : ''} ${className || ''}`}
@@ -161,23 +161,14 @@ export function TransactionRow({
           />
         </div>
       ) : null}
-      {/* 2×2 grid layout — 左右各 2 行:
-            ┌──────────────────┬──────────────┐
-            │ 分类 / 备注       │ hover + 金额  │  顶
-            ├──────────────────┼──────────────┤
-            │ 时间·账户·tag·附件│ chip(头像)    │  底
-            └──────────────────┴──────────────┘
-          顶/底行因为同 grid row 自然底对齐;showCreator=false 时 chip
-          单元为空(row 高度由顶行决定),tile 跟单人账本完全一致;
-          有 chip 时 row 高度被撑,左下 meta 自然贴底,跟 chip 水平对齐。 */}
+      {/* 桌面明细使用固定比例的分类、备注、时间/账户和金额列；窄屏保持双列布局。 */}
       <div
-        className={`grid min-w-0 flex-1 gap-x-3 md:flex md:flex-wrap md:items-center md:justify-start ${
-          isCompact ? '' : 'md:max-w-6xl'
+        className={`grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_1fr] gap-x-3 ${
+          isCompact ? '' : 'md:max-w-4xl md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,1.35fr)_minmax(0,0.8fr)] md:grid-rows-[auto_auto] md:items-start'
         }`}
-        style={{ gridTemplateColumns: '1fr auto', gridTemplateRows: 'auto 1fr' }}
       >
         {/* 左上:分类 + 备注 + 账本名(showLedger,主题色) — self-start 钉到 row 顶部 */}
-        <div className="flex min-w-0 items-center gap-2 self-start md:max-w-48 md:shrink-0">
+        <div className={`flex min-w-0 items-start gap-2 self-start ${isCompact ? '' : 'md:col-start-1 md:row-start-1'}`}>
           {categoryEntry ? (
             <CategoryIcon
               icon={categoryEntry.icon}
@@ -193,7 +184,7 @@ export function TransactionRow({
             // 行为与点行一致(选择模式 = 切换选中,否则 = 打开详情)。
             <button
               type="button"
-              className="truncate rounded-sm text-left text-sm font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+              className="min-w-0 break-words rounded-sm text-left text-sm font-medium [overflow-wrap:anywhere] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
               onClick={(event) => {
                 event.stopPropagation()
                 if (selectionMode && onToggleSelect) {
@@ -206,7 +197,7 @@ export function TransactionRow({
               {rowTitle.primary}
             </button>
           ) : (
-            <span className="truncate text-sm font-medium">{rowTitle.primary}</span>
+            <span className="min-w-0 break-words text-sm font-medium [overflow-wrap:anywhere]">{rowTitle.primary}</span>
           )}
           {showLedger && row.ledger_name ? (
             <span
@@ -218,19 +209,16 @@ export function TransactionRow({
           ) : null}
         </div>
 
-        {rowTitle.parenNote ? (
-          <span
-            className="hidden min-w-0 max-w-72 truncate text-sm text-muted-foreground md:order-2 md:block"
-            title={rowTitle.parenNote}
-          >
+        {!isCompact ? (
+          <span className="hidden min-w-0 whitespace-pre-wrap break-words text-sm text-muted-foreground [overflow-wrap:anywhere] md:col-start-2 md:row-start-1 md:block">
             {rowTitle.parenNote}
           </span>
         ) : null}
 
         {/* 右上:hover 动作 + 金额 — self-start 钉顶 */}
-        <div className="col-start-2 row-start-1 flex shrink-0 items-center justify-end gap-2 self-start md:order-4 md:ml-3">
+        <div className={`col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 self-start ${isCompact ? '' : 'md:col-start-4'}`}>
           {(onEdit || onDelete) && !isCompact && !selectionMode ? (
-            <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 md:absolute md:right-4 md:top-2">
               {onEdit ? (
                 <button
                   type="button"
@@ -259,7 +247,7 @@ export function TransactionRow({
               ) : null}
             </div>
           ) : null}
-          <span className={`font-mono text-sm tabular-nums font-bold ${
+          <span className={`min-w-0 break-all text-right font-mono text-sm tabular-nums font-bold ${
             amountTone === 'positive'
               ? 'text-income'
               : amountTone === 'negative'
@@ -277,21 +265,22 @@ export function TransactionRow({
         </div>
 
         {/* 左下:时间·账户·标签·附件 — self-end 钉到 row 底部 */}
-        <div className={`col-start-1 row-start-2 mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 self-end md:order-3 md:mt-0 md:gap-x-2 ${
+        <div className={`col-start-1 row-start-2 mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 self-end ${isCompact ? '' : 'md:col-start-3 md:row-start-1 md:mt-0 md:self-start md:gap-x-2'} ${
           isCompact ? 'text-[11px]' : 'text-xs'
         } text-muted-foreground`}>
-          <span className="shrink-0 font-mono tabular-nums">{formatDateTime(row.happened_at)}</span>
+          <span className="font-mono tabular-nums">{formatDateTime(row.happened_at)}</span>
           {accountText && accountText !== '-' ? (
-            <span className="max-w-32 truncate">· {accountText}</span>
+            <span className="min-w-0 break-words [overflow-wrap:anywhere]">· {accountText}</span>
           ) : null}
           {rowTitle.parenNote ? (
-            <span className="min-w-0 truncate md:hidden" title={rowTitle.parenNote}>· {rowTitle.parenNote}</span>
+            <span className={`min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isCompact ? '' : 'md:hidden'}`}>· {rowTitle.parenNote}</span>
           ) : null}
           {row.tags_list && row.tags_list.length > 0
             ? row.tags_list.map((tagName) => (
                 <TagChip
                   key={tagName}
                   name={tagName}
+                  className="max-w-full break-all"
                   color={tagColorByName?.get(tagName.trim().toLowerCase())}
                   onClick={onClickTag}
                 />
@@ -322,7 +311,7 @@ export function TransactionRow({
 
         {/* 右下:≈折算(反馈14:与左下时间行平齐)+ 创建/编辑头像 chip —
             self-end 钉到 row 底部,跟左下 meta 同 grid row,水平自动对齐 */}
-        <div className="col-start-2 row-start-2 mt-1 flex shrink-0 items-center justify-end gap-2 self-end md:order-5 md:col-start-auto md:row-start-auto md:ml-2 md:mt-0">
+        <div className={`col-start-2 row-start-2 mt-1 flex min-w-0 flex-wrap items-center justify-end gap-2 self-end ${isCompact ? '' : 'md:col-start-4 md:row-start-2'}`}>
           {showCreator ? (
             <CreatorEditorChip row={row} currentUserId={currentUserId} t={t} />
           ) : null}
